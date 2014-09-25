@@ -40,6 +40,7 @@ public class JobContext {
   protected static final String INPUT_FORMAT_CLASS_ATTR = 
     "mapreduce.inputformat.class";
   protected static final String MAP_CLASS_ATTR = "mapreduce.map.class";
+  protected static final String MAP_GPU_CLASS_ATTR = "mapreduce.mapgpu.class";
   protected static final String COMBINE_CLASS_ATTR = "mapreduce.combine.class";
   protected static final String REDUCE_CLASS_ATTR = "mapreduce.reduce.class";
   protected static final String OUTPUT_FORMAT_CLASS_ATTR = 
@@ -200,6 +201,13 @@ public class JobContext {
       conf.getClass(MAP_CLASS_ATTR, Mapper.class);
   }
 
+  @SuppressWarnings("unchecked")
+  public Class<? extends Mapper<?,?,?,?>> getGPUMapperClass() 
+     throws ClassNotFoundException {
+    return (Class<? extends Mapper<?,?,?,?>>) 
+      conf.getClass(MAP_GPU_CLASS_ATTR, Mapper.class);
+  }
+  
   /**
    * Get the combiner class for the job.
    * 

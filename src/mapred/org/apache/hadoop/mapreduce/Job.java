@@ -175,6 +175,11 @@ public class Job extends JobContext {
     conf.setClass(MAP_CLASS_ATTR, cls, Mapper.class);
   }
 
+  public void setGPUMapperClass(Class<? extends Mapper> cls
+          ) throws IllegalStateException {
+    ensureState(JobState.DEFINE);
+    conf.setClass(MAP_GPU_CLASS_ATTR, cls, Mapper.class);
+}
   /**
    * Set the Jar by finding where a given class came from.
    * @param cls the example class
