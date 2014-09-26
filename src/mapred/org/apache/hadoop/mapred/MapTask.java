@@ -1,4 +1,5 @@
-/**
+/***Modified by Mingcong for CPU+GPU
+ * 
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -715,6 +716,7 @@ class MapTask extends Task {
     org.apache.hadoop.mapreduce.TaskAttemptContext taskContext =
       new org.apache.hadoop.mapreduce.TaskAttemptContext(job, getTaskID());
     // make a mapper
+    //smc
     org.apache.hadoop.mapreduce.Mapper<INKEY,INVALUE,OUTKEY,OUTVALUE> mapper =
       (org.apache.hadoop.mapreduce.Mapper<INKEY,INVALUE,OUTKEY,OUTVALUE>)
         ReflectionUtils.newInstance(taskContext.getGPUMapperClass(), job);

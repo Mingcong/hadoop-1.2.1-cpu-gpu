@@ -1,4 +1,5 @@
-/**
+/***Modified by Mingcong for CPU+GPU
+ * 
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,6 +43,8 @@ public class TaskReport implements Writable {
   private Collection<TaskAttemptID> runningAttempts = 
     new ArrayList<TaskAttemptID>();
   private TaskAttemptID successfulAttempt = new TaskAttemptID();
+  //smc
+  private boolean runOnGPU;
   public TaskReport() {
     taskid = new TaskID();
   }
@@ -89,7 +92,23 @@ public class TaskReport implements Writable {
     this.finishTime = finishTime;
     this.counters = counters;
   }
-    
+ 
+  //smc
+  TaskReport(TaskID taskid, float progress, String state,
+          String[] diagnostics, TIPStatus currentStatus, 
+          long startTime, long finishTime,
+          Counters counters, boolean runOnGPU) {
+    this.taskid = taskid;
+    this.progress = progress;
+    this.state = state;
+    this.diagnostics = diagnostics;
+    this.currentStatus = currentStatus;
+    this.startTime = startTime; 
+    this.finishTime = finishTime;
+    this.counters = counters;
+    this.runOnGPU = runOnGPU;
+}
+  
   /** @deprecated use {@link #getTaskID()} instead */
   @Deprecated
   public String getTaskId() { return taskid.toString(); }
@@ -108,6 +127,15 @@ public class TaskReport implements Writable {
     return currentStatus;
   }
   
+  //smc
+  public boolean getRunOnGPU() {
+    return runOnGPU;
+  }
+
+  public void setRunOnGPU(boolean runOnGPU) {
+    this.runOnGPU = runOnGPU;
+  }
+	  
   /**
    * Get finish time of task. 
    * @return 0, if finish time was not set else returns finish time.
@@ -197,6 +225,8 @@ public class TaskReport implements Writable {
     taskid.write(out);
     out.writeFloat(progress);
     Text.writeString(out, state);
+    //smc
+    out.writeBoolean(runOnGPU);
     out.writeLong(startTime);
     out.writeLong(finishTime);
     WritableUtils.writeStringArray(out, diagnostics);
@@ -218,6 +248,8 @@ public class TaskReport implements Writable {
     this.taskid.readFields(in);
     this.progress = in.readFloat();
     this.state = Text.readString(in);
+    //smc
+    this.runOnGPU = in.readBoolean();
     this.startTime = in.readLong(); 
     this.finishTime = in.readLong();
     

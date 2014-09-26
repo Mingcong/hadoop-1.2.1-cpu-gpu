@@ -1,4 +1,5 @@
-/**
+/***Modified by Mingcong for CPU+GPU
+ * 
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +31,15 @@ class MapTaskStatus extends TaskStatus {
           taskTracker, phase, counters);
   }
 
+  //smc
+  public MapTaskStatus(TaskAttemptID taskid, float progress, int numSlots,
+          State runState, String diagnosticInfo, String stateString,
+          String taskTracker, Phase phase, boolean runOnGPU, Counters counters) {
+    super(taskid, progress, numSlots, runState, diagnosticInfo, stateString,
+          taskTracker, phase, counters);
+    this.setRunOnGPU(runOnGPU);
+  }
+  
   @Override
   public boolean getIsMap() {
     return true;
