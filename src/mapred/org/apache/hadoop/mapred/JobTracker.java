@@ -1,4 +1,5 @@
-/**
+/***Modified by Mingcong for CPU+GPU
+ * 
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -3026,6 +3027,19 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
             if(LOG.isDebugEnabled()) {
               LOG.debug(trackerName + " -> LaunchTask: " + task.getTaskID());
             }
+            
+            //smc
+            TaskReport[] as = this.getMapTaskReports(task.getJobID());
+            
+            for (TaskReport a : as) {
+              if (a.getFinishTime()!= 0) {
+                LOG.info("YYYY " + a.getTaskID() + " " + (a.getFinishTime() - a.getStartTime()) + " [ms].");
+              }
+              if(task.getTaskID().getTaskID() == a.getTaskID()) {
+                a.setRunOnGPU(task.runOnGPU());
+              }
+            }
+            
             actions.add(new LaunchTaskAction(task));
           }
         }
