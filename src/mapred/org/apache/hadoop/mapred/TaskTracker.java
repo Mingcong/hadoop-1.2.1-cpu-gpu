@@ -1,4 +1,5 @@
-/**
+/***Modified by Mingcong for CPU+GPU
+ * 
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -329,6 +330,10 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   private JobConf originalConf;
   private Localizer localizer;
   private int maxMapSlots;
+  //smc
+  private int maxCPUMapSlots;
+  private int maxGPUMapSlots;
+  
   private int maxReduceSlots;
   private int taskFailures;
   final long mapRetainSize;
@@ -931,8 +936,10 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     getUserLogManager().clearOldUserLogs(fConf);
 
     setIndexCache(new IndexCache(this.fConf));
-
-    mapLauncher = new TaskLauncher(TaskType.MAP, maxMapSlots);
+    //smc
+    //mapLauncher = new TaskLauncher(TaskType.MAP, maxMapSlots);
+    mapLauncher = new TaskLauncher(TaskType.MAP, maxCPUMapSlots, maxGPUMapSlots);
+    
     reduceLauncher = new TaskLauncher(TaskType.REDUCE, maxReduceSlots);
     mapLauncher.start();
     reduceLauncher.start();
@@ -1529,8 +1536,13 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
         CommonConfigurationKeys.HADOOP_SKIP_VERSION_CHECK_KEY,
         CommonConfigurationKeys.HADOOP_SKIP_VERSION_CHECK_DEFAULT);
     FILE_CACHE_SIZE = conf.getInt("mapred.tasktracker.file.cache.size", 2000);
-    maxMapSlots = conf.getInt(
-                  "mapred.tasktracker.map.tasks.maximum", 2);
+    //smc
+//    maxMapSlots = conf.getInt(
+//                  "mapred.tasktracker.map.tasks.maximum", 2);
+    maxCPUMapSlots = conf.getInt("mapred.tasktracker.map.cpu.tasks.maximum", 2);
+    maxGPUMapSlots = conf.getInt("mapred.tasktracker.map.gpu.tasks.maximum", 0);
+    maxMapSlots = maxCPUMapSlots + maxGPUMapSlots;
+    
     maxReduceSlots = conf.getInt(
                   "mapred.tasktracker.reduce.tasks.maximum", 2);
     diskHealthCheckInterval = conf.getLong(DISK_HEALTH_CHECK_INTERVAL_PROPERTY,
@@ -1966,7 +1978,8 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
                                          sendCounters), 
                                        taskFailures,
                                        localStorage.numFailures(),
-                                       maxMapSlots,
+                                       maxCPUMapSlots,//smc
+                                       maxGPUMapSlots,
                                        maxReduceSlots); 
       }
     } else {
@@ -1980,10 +1993,16 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     boolean askForNewTask;
     long localMinSpaceStart;
     synchronized (this) {
-      askForNewTask = 
-        ((status.countOccupiedMapSlots() < maxMapSlots || 
-          status.countOccupiedReduceSlots() < maxReduceSlots) && 
-         acceptNewTasks); 
+    	//smc
+//      askForNewTask = 
+//        ((status.countOccupiedMapSlots() < maxMapSlots || 
+//          status.countOccupiedReduceSlots() < maxReduceSlots) && 
+//         acceptNewTasks); 
+    	askForNewTask = ((status.countOccupiedCPUMapSlots() < maxCPUMapSlots ||
+    					status.countOccupiedGPUMapSlots() < maxGPUMapSlots ||
+    					status.countOccupiedReduceSlots() < maxReduceSlots) &&
+    					acceptNewTasks);
+    	
       localMinSpaceStart = minSpaceStart;
     }
     if (askForNewTask) {
@@ -2452,7 +2471,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     }
   }
   
-  class TaskLauncher extends Thread {
+  /*class TaskLauncher extends Thread {
     private IntWritable numFreeSlots;
     private final int maxSlots;
     private List<TaskInProgress> tasksToLaunch;
@@ -2569,7 +2588,186 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
         }
       }
     }
-  }
+  }*/
+  //smc
+  class TaskLauncher extends Thread {
+    private IntWritable numCPUFreeSlots;
+    private IntWritable numGPUFreeSlots;	
+    private final int maxCPUSlots;
+    private final int maxGPUSlots;
+    private List<TaskInProgress> tasksToLaunch;
+    public TaskLauncher(TaskType taskType, int numCPUSlots) {
+	  this(taskType, numCPUSlots, 0);
+	}
+	public TaskLauncher(TaskType taskType, int numCPUSlots, int numGPUSlots) {
+	  this.maxCPUSlots = numCPUSlots;
+	  this.numCPUFreeSlots = new IntWritable(numCPUSlots);
+	  this.maxGPUSlots = numGPUSlots;
+	  this.numGPUFreeSlots = new IntWritable(numGPUSlots);
+	  this.tasksToLaunch = new LinkedList<TaskInProgress>();
+	  setDaemon(true);
+	  setName("AcceleratedTaskLauncher for " + taskType + " tasks");
+	}
+	public void addToTaskQueue(LaunchTaskAction action) {
+	  synchronized (tasksToLaunch) {
+	    TaskInProgress tip = registerTask(action, this);
+	    tasksToLaunch.add(tip);
+	    tasksToLaunch.notifyAll();
+	  }
+	}
+	public void cleanTaskQueue() {
+	  tasksToLaunch.clear();
+	}
+	public void addFreeCPUSlots(int numSlots) {
+	  synchronized (numCPUFreeSlots) {
+	    numCPUFreeSlots.set(numCPUFreeSlots.get() + numSlots);
+	    assert (numCPUFreeSlots.get() <= maxCPUSlots);
+	    LOG.info("addFreeCPUSlot : current free slots : " + numCPUFreeSlots.get());
+	    numCPUFreeSlots.notifyAll();
+	  }
+	}
+	public void addFreeGPUSlots(int numSlots) {
+	  synchronized (numGPUFreeSlots) {
+	    numGPUFreeSlots.set(numGPUFreeSlots.get() + numSlots);
+	    assert (numGPUFreeSlots.get() <= maxGPUSlots);
+	    LOG.info("addFreeGPUSlot : current free slots : " + numGPUFreeSlots.get());
+	    numGPUFreeSlots.notifyAll();
+	  }
+	}
+	void notifySlots() {
+	  synchronized (numCPUFreeSlots) {
+	    numCPUFreeSlots.notifyAll();
+	  }
+	  synchronized (numGPUFreeSlots) {
+	    numGPUFreeSlots.notifyAll();
+	  }
+	}
+	int getNumWaitingTasksToLaunch() {
+	  synchronized (tasksToLaunch) {
+	    return tasksToLaunch.size();
+	  }
+	}
+	public void run() {
+	  while (!Thread.interrupted()) {
+	    try {
+	      TaskInProgress tip;
+	      Task task;
+	      synchronized (tasksToLaunch) {
+	        while (tasksToLaunch.isEmpty()) {
+	          tasksToLaunch.wait();
+	        }
+	        //get the TIP
+	        tip = tasksToLaunch.remove(0);
+	        task = tip.getTask();
+	        // LOG.info("Trying to launch : " + tip.getTask().getTaskID() +
+	        // " which needs " + task.getNumSlotsRequired() + " slots");
+	        if (tip.getTask().runOnGPU()) {
+	          LOG.info("Trying to launch : " + tip.getTask().getTaskID() + " on GPU" +
+	        		  " which needs " + task.getNumSlotsRequired() + " slots");
+	        } else {
+	          LOG.info("Trying to launch : " + tip.getTask().getTaskID() + " on CPU "+
+	        		  " which needs " + task.getNumSlotsRequired() + " slots");
+	        }
+	      }
+	      //wait for free slots to run
+	      if (tip.getTask().runOnGPU()) {
+	        synchronized(numGPUFreeSlots) {
+	        	boolean canLaunch = true;
+	        		while (numGPUFreeSlots.get() < task.getNumSlotsRequired()) {
+	        			//Make sure that there is no kill task action for this task!
+	        			//We are not locking tip here, because it would reverse the
+	        			//locking order!
+							  //Also, Lock for the tip is not required here! because :
+							  // 1. runState of TaskStatus is volatile
+							  // 2. Any notification is not missed because notification is
+							  // synchronized on numFreeSlots. So, while we are doing the check,
+							  // if the tip is half way through the kill(), we don't miss
+							  // notification for the following wait().
+	        			if (!tip.canBeLaunched()) {
+	        				//got killed externally while still in the launcher queue
+	        				LOG.info("Not blocking slots for " + task.getTaskID()
+	        									+ " as it got killed externally. Task's state is "
+	        									+ tip.getRunState());
+	        				canLaunch = false;
+	        				break;
+	        			}
+	        			LOG.info("TaskLauncher : Waiting for " + task.getNumSlotsRequired() +
+	        								" to launch " + task.getTaskID() + ", currently we have " +
+	        								numGPUFreeSlots.get() + " free GPU slots");
+	        			numGPUFreeSlots.wait();
+	        		}
+	        		if (!canLaunch) {
+	        			continue;
+	        		}
+	        		LOG.info("In TaskLauncher, current free GPU slots : " + numGPUFreeSlots.get()+
+	        							" and trying to launch "+tip.getTask().getTaskID() +
+	        							" which needs " + task.getNumSlotsRequired() + " GPU slots");
+	        		numGPUFreeSlots.set(numGPUFreeSlots.get() - task.getNumSlotsRequired());
+	        		assert (numGPUFreeSlots.get() >= 0);
+	        }	
+	      } else {
+	      	synchronized(numCPUFreeSlots) {
+	      		boolean canLaunch = true;
+	      		while (numCPUFreeSlots.get() < task.getNumSlotsRequired()) {
+	      			//Make sure that there is no kill task action for this task!
+						  //We are not locking tip here, because it would reverse the
+						  //locking order!
+						  //Also, Lock for the tip is not required here! because :
+						  // 1. runState of TaskStatus is volatile
+						  // 2. Any notification is not missed because notification is
+						  // synchronized on numFreeSlots. So, while we are doing the check,
+						  // if the tip is half way through the kill(), we don't miss
+						  // notification for the following wait().
+	      			if (!tip.canBeLaunched()) {
+	      				//got killed externally while still in the launcher queue
+	      				LOG.info("Not blocking slots for " + task.getTaskID()
+	      									+ " as it got killed externally. Task's state is "
+	      									+ tip.getRunState());
+	      				canLaunch = false;
+	      				break;
+	      			}
+	      			LOG.info("TaskLauncher : Waiting for " + task.getNumSlotsRequired() +
+	      								" to launch " + task.getTaskID() + ", currently we have " +
+	      								numCPUFreeSlots.get() + " free CPU slots");
+	      			numCPUFreeSlots.wait();
+	      		}
+	      		if (!canLaunch) {
+	      			continue;
+	      		}
+	      		LOG.info("In TaskLauncher, current free GPU slots : " + numCPUFreeSlots.get()+
+	      							" and trying to launch "+tip.getTask().getTaskID() +
+	      							" which needs " + task.getNumSlotsRequired() + " CPU slots");
+	      		numCPUFreeSlots.set(numCPUFreeSlots.get() - task.getNumSlotsRequired());
+	      		assert (numCPUFreeSlots.get() >= 0);
+	      	}	
+	      }
+	      synchronized (tip) {
+	      	//to make sure that there is no kill task action for this
+	      	if (!tip.canBeLaunched()) {
+	      		//got killed externally while still in the launcher queue
+	      		LOG.info("Not launching task " + task.getTaskID() + " as it got"
+	      							+ " killed externally. Task's state is " + tip.getRunState());
+	      		if (tip.getTask().runOnGPU())
+	      			addFreeGPUSlots(task.getNumSlotsRequired());
+	      		else
+	      			addFreeCPUSlots(task.getNumSlotsRequired());
+	      		continue;
+	      	}
+	      	tip.slotTaken = true;
+	      }
+	      //got a free slot. launch the task
+	      startNewTask(tip);
+	    }catch (InterruptedException e) {
+	    	return; // ALL DONE
+	    } catch (Throwable th) {
+	    	LOG.error("TaskLauncher error " +
+	    						StringUtils.stringifyException(th));
+	    }
+	  }
+	}
+}
+  
+  
   private TaskInProgress registerTask(LaunchTaskAction action, 
       TaskLauncher launcher) {
     Task t = action.getTask();
@@ -2595,6 +2793,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
    * task tracker.
    * @throws InterruptedException 
    */
+ 
   void startNewTask(final TaskInProgress tip) throws InterruptedException {
     Thread launchThread = new Thread(new Runnable() {
       @Override
@@ -2774,6 +2973,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
                                                  TaskStatus.Phase.CLEANUP :  
                                                task.isMapTask()? TaskStatus.Phase.MAP:
                                                TaskStatus.Phase.SHUFFLE,
+                                               task.runOnGPU(),//smc
                                                task.getCounters()); 
       taskTimeout = (10 * 60 * 1000);
     }
@@ -3332,7 +3532,13 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     private synchronized void releaseSlot() {
       if (slotTaken) {
         if (launcher != null) {
-          launcher.addFreeSlots(task.getNumSlotsRequired());
+          //smc
+        	//launcher.addFreeSlots(task.getNumSlotsRequired());
+        	if (getTask().runOnGPU()) {
+        		launcher.addFreeGPUSlots(task.getNumSlotsRequired());
+        	} else {
+        		launcher.addFreeCPUSlots(task.getNumSlotsRequired());
+        	}
         }
         slotTaken = false;
       } else {
@@ -4252,6 +4458,13 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
   int getMaxCurrentMapTasks() {
     return maxMapSlots;
+  }
+  //smc
+  int getMaxCPUMapSlots() {
+  	return maxCPUMapSlots;
+  }
+  int getMaxGPUMapSlots() {
+  	return maxGPUMapSlots;
   }
   
   int getMaxCurrentReduceTasks() {
