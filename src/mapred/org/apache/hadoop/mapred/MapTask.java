@@ -62,6 +62,7 @@ import org.apache.hadoop.io.serializer.Serializer;
 import org.apache.hadoop.mapred.IFile.Writer;
 import org.apache.hadoop.mapred.Merger.Segment;
 import org.apache.hadoop.mapred.SortedRanges.SkipRangeIterator;
+import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.split.JobSplit.TaskSplitIndex;
 import org.apache.hadoop.util.IndexedSortable;
@@ -717,9 +718,17 @@ class MapTask extends Task {
       new org.apache.hadoop.mapreduce.TaskAttemptContext(job, getTaskID());
     // make a mapper
     //smc
-    org.apache.hadoop.mapreduce.Mapper<INKEY,INVALUE,OUTKEY,OUTVALUE> mapper =
-      (org.apache.hadoop.mapreduce.Mapper<INKEY,INVALUE,OUTKEY,OUTVALUE>)
-        ReflectionUtils.newInstance(taskContext.getGPUMapperClass(), job);
+    org.apache.hadoop.mapreduce.Mapper<INKEY,INVALUE,OUTKEY,OUTVALUE> mapper;
+    if(runOnGPU){
+      mapper =
+          (org.apache.hadoop.mapreduce.Mapper<INKEY,INVALUE,OUTKEY,OUTVALUE>)
+            ReflectionUtils.newInstance(taskContext.getGPUMapperClass(), job);
+    } else{
+      mapper =
+          (org.apache.hadoop.mapreduce.Mapper<INKEY,INVALUE,OUTKEY,OUTVALUE>)
+            ReflectionUtils.newInstance(taskContext.getMapperClass(), job);
+    }
+
     // make the input format
     org.apache.hadoop.mapreduce.InputFormat<INKEY,INVALUE> inputFormat =
       (org.apache.hadoop.mapreduce.InputFormat<INKEY,INVALUE>)
@@ -758,7 +767,9 @@ class MapTask extends Task {
         output = new NewOutputCollector(taskContext, job, umbilical, reporter);
       }
 
-      mapperContext = contextConstructor.newInstance(mapper, job, getTaskID(),
+
+
+			mapperContext = contextConstructor.newInstance(mapper, job, getTaskID(),
                                                      input, output, committer,
                                                      reporter, split);
 
