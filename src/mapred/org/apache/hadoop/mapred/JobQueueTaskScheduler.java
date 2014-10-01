@@ -109,6 +109,10 @@ class JobQueueTaskScheduler extends TaskScheduler {
     //smc
     final int trackerRunningCPUMaps = taskTrackerStatus.countCPUMapTasks();
     final int trackerRunningGPUMaps = taskTrackerStatus.countGPUMapTasks();
+    //smc power
+    final float trackeridlePower = taskTrackerStatus.getResourceStatus().getidlePower();
+    final float trackercpuPower = taskTrackerStatus.getResourceStatus().getcpuPower()-trackeridlePower;
+    final float trackergpuPower = taskTrackerStatus.getResourceStatus().getgpuPower()-trackeridlePower;
     
     final int trackerRunningReduces = taskTrackerStatus.countReduceTasks();
     
@@ -120,7 +124,9 @@ class JobQueueTaskScheduler extends TaskScheduler {
     LOG.info("DEBUG trackerRunningCPUMaps : " + trackerRunningCPUMaps);
     LOG.info("DEBUG trackerRunningGPUMaps : " + trackerRunningGPUMaps);
     LOG.info("DEBUG trackerRunningMaps : " + trackerRunningMaps);
-
+    LOG.info("smc trackercpuPower : " + taskTracker.getTrackerName() +":   "+ trackercpuPower);
+    LOG.info("smc trackergpuPower : " + taskTracker.getTrackerName() +":   "+ trackergpuPower);
+    LOG.info("smc trackeridlePower : " + taskTracker.getTrackerName() +":   "+ trackeridlePower);
     // Assigned tasks
     List<Task> assignedTasks = new ArrayList<Task>();
 
@@ -170,6 +176,10 @@ class JobQueueTaskScheduler extends TaskScheduler {
     		(cpuMapTaskMeanTime == 0 || gpuMapTaskMeanTime == 0) ? 0.0
     				: (double)cpuMapTaskMeanTime / (double)gpuMapTaskMeanTime;
     LOG.info("DEBUG: accelarationfactor : " + accelarationFactor);
+    
+    double powerRatio = (trackercpuPower < 0 || trackergpuPower < 0) ? 0.0
+				: (double)trackergpuPower / (double)trackercpuPower;
+    LOG.info("DEBUG: smc  powerRatio : " + powerRatio);
     
     // Compute the 'load factor' for maps and reduces
     double mapLoadFactor = 0.0;
@@ -221,8 +231,9 @@ class JobQueueTaskScheduler extends TaskScheduler {
     LOG.info("XXXX availableCPUMapSlots : " + availableCPUMapSlots);
     LOG.info("XXXX availableGPUMapSlots : " + availableGPUMapSlots);
     
-    if(!(Math.max(pendingMapLoad, 0) < accelarationFactor * trackerGPUMapCapacity * numTaskTrackers)){
-    	
+    //if((!(Math.max(pendingMapLoad, 0) < accelarationFactor * trackerGPUMapCapacity * numTaskTrackers) 
+    		//&& finishedGPUMapTasks>0) || (finishedCPUMapTasks==0) ){
+    if((accelarationFactor<1 && finishedGPUMapTasks>0) || (finishedCPUMapTasks==0) ){	
     	LOG.info("DEBUG: ************* try to assign to CPU");
     	
     	scheduleCPUMaps:
@@ -261,42 +272,45 @@ class JobQueueTaskScheduler extends TaskScheduler {
     else{
     	LOG.info("DEBUG: DO NOT try to assign to CPU");
     }
-          
-    LOG.info("DEBUG: ************* try to assign to GPU");
     
-    scheduleGPUMaps:
-   	for (int i = 0; i < availableGPUMapSlots; ++i) {
-   		synchronized(jobQueue) {
-   			for (JobInProgress job : jobQueue) {
-   				if (job.getStatus().getRunState() != JobStatus.RUNNING) {
-   					continue;
-   				}
-   				
-				
-				Task t = null;
-   				// NewNodeLocalMapTask
-   				t = job.obtainNewNodeLocalMapTask(taskTrackerStatus, numTaskTrackers, 
-   						taskTrackerManager.getNumberOfUniqueHosts());
-   				if (t != null) {
-   					t.setRunOnGPU(true);
-   					assignedTasks.add(t);
-   					++numLocalMaps;
-   					LOG.info("DEBUG: ************* assign to GPU");
-   					break;
-   				}
-   				
-   				// NewNonLocalMapTask
-   				t = job.obtainNewNonLocalMapTask(taskTrackerStatus, numTaskTrackers, 
-   						taskTrackerManager.getNumberOfUniqueHosts());
-   				if (t != null) {
-   					t.setRunOnGPU(true);
-   					assignedTasks.add(t);
-   					++numNonLocalMaps;
-   					LOG.info("DEBUG: ************* assign to GPU");
-   					break scheduleGPUMaps;
-   				}
-   			}
-   		}
+    if(finishedCPUMapTasks>0){
+      LOG.info("DEBUG: ************* try to assign to GPU");
+      scheduleGPUMaps:
+     	for (int i = 0; i < availableGPUMapSlots; ++i) {
+     		synchronized(jobQueue) {
+     			for (JobInProgress job : jobQueue) {
+     				if (job.getStatus().getRunState() != JobStatus.RUNNING) {
+     					continue;
+     				}
+     				
+  				
+  				Task t = null;
+     				// NewNodeLocalMapTask
+     				t = job.obtainNewNodeLocalMapTask(taskTrackerStatus, numTaskTrackers, 
+     						taskTrackerManager.getNumberOfUniqueHosts());
+     				if (t != null) {
+     					t.setRunOnGPU(true);
+     					assignedTasks.add(t);
+     					++numLocalMaps;
+     					LOG.info("DEBUG: ************* assign to GPU");
+     					break;
+     				}
+     				
+     				// NewNonLocalMapTask
+     				t = job.obtainNewNonLocalMapTask(taskTrackerStatus, numTaskTrackers, 
+     						taskTrackerManager.getNumberOfUniqueHosts());
+     				if (t != null) {
+     					t.setRunOnGPU(true);
+     					assignedTasks.add(t);
+     					++numNonLocalMaps;
+     					LOG.info("DEBUG: ************* assign to GPU");
+     					break scheduleGPUMaps;
+     				}
+     			}
+     		}
+    	
+    }
+
    	}
     
     /*

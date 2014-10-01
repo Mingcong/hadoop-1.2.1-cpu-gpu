@@ -79,6 +79,11 @@ public class TaskTrackerStatus implements Writable {
     private long cumulativeCpuTime = UNAVAILABLE; // in millisecond
     private long cpuFrequency = UNAVAILABLE; // in kHz
     private float cpuUsage = UNAVAILABLE; // in %
+    
+    //smc measure power
+    private float cpuPower = UNAVAILABLE; // in %
+    private float gpuPower = UNAVAILABLE; // in %
+    private float idlePower = UNAVAILABLE; // in %
 
     ResourceStatus() {
       totalVirtualMemory = JobConf.DISABLED_MEMORY_LIMIT;
@@ -314,6 +319,63 @@ public class TaskTrackerStatus implements Writable {
       return cpuUsage;
     }
     
+    /**
+     * smc Set the Power on this TaskTracker
+     * 
+     * @param Power in W
+     */
+    public void setcpuPower(float power) {
+      this.cpuPower = power;
+    }
+
+    /**
+     * Get the Power on this TaskTracker
+     * Will return UNAVAILABLE if it cannot be obtained
+     *
+     * @return Power in W
+     */
+    public float getcpuPower() {
+      return cpuPower;
+    }
+    
+    /**
+     * smc Set the Power on this TaskTracker
+     * 
+     * @param Power in W
+     */
+    public void setgpuPower(float power) {
+      this.gpuPower = power;
+    }
+
+    /**
+     * Get the Power on this TaskTracker
+     * Will return UNAVAILABLE if it cannot be obtained
+     *
+     * @return Power in W
+     */
+    public float getgpuPower() {
+      return gpuPower;
+    }
+    
+    /**
+     * smc Set the Power on this TaskTracker
+     * 
+     * @param Power in W
+     */
+    public void setidlePower(float power) {
+      this.idlePower = power;
+    }
+
+    /**
+     * Get the Power on this TaskTracker
+     * Will return UNAVAILABLE if it cannot be obtained
+     *
+     * @return Power in W
+     */
+    public float getidlePower() {
+      return idlePower;
+    }
+    
     public void write(DataOutput out) throws IOException {
       WritableUtils.writeVLong(out, totalVirtualMemory);
       WritableUtils.writeVLong(out, totalPhysicalMemory);
@@ -326,6 +388,10 @@ public class TaskTrackerStatus implements Writable {
       WritableUtils.writeVLong(out, cpuFrequency);
       WritableUtils.writeVInt(out, numProcessors);
       out.writeFloat(getCpuUsage());
+      //smc
+      out.writeFloat(getcpuPower());
+      out.writeFloat(getgpuPower());
+      out.writeFloat(getidlePower());
     }
     
     public void readFields(DataInput in) throws IOException {
@@ -340,6 +406,10 @@ public class TaskTrackerStatus implements Writable {
       cpuFrequency = WritableUtils.readVLong(in);
       numProcessors = WritableUtils.readVInt(in);
       setCpuUsage(in.readFloat());
+      //smc
+      setcpuPower(in.readFloat());
+      setgpuPower(in.readFloat());
+      setidlePower(in.readFloat());
     }
   }
   
@@ -455,6 +525,38 @@ public class TaskTrackerStatus implements Writable {
     return (state == State.RUNNING || state == State.UNASSIGNED || 
             taskStatus.inTaskCleanupPhase());
   }
+  /**
+   * smc caculate time to measure power
+   * @return true or false
+   */
+  public boolean startMeasureCPU() {
+  	long runTime=0;
+  	long now = System.currentTimeMillis();
+    for (TaskStatus ts : taskReports) {
+      if (ts.getIsMap() && isTaskRunning(ts) && ts.runOnCPU()) {
+      	runTime = now - ts.getStartTime();
+      }
+    }
+    if(runTime>60*1000 && runTime<70*1000)
+    	return true;
+    else
+    	return false;
+  }
+  
+  public boolean startMeasureGPU() {
+  	long runTime=0;
+  	long now = System.currentTimeMillis();
+    for (TaskStatus ts : taskReports) {
+      if (ts.getIsMap() && isTaskRunning(ts) && ts.runOnGPU()) {
+      	runTime = now - ts.getStartTime();
+      }
+    }
+    if(runTime>60*1000 && runTime<70*1000)
+    	return true;
+    else
+    	return false;
+  }
+  
   
   /**
    * Get the number of running map tasks.

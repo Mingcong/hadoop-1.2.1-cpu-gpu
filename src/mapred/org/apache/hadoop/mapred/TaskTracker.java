@@ -18,10 +18,12 @@
  */
 package org.apache.hadoop.mapred;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
@@ -304,6 +306,10 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   long minSpaceStart = 0;
   //must have this much space free to start new tasks
   boolean acceptNewTasks = true;
+  //smc
+  volatile float idlePower = 0;
+  volatile float cpuPower = 0;
+  volatile float gpuPower = 0;
   long minSpaceKill = 0;
   //if we run under this limit, kill one task
   //and make sure we never receive any new jobs
@@ -851,6 +857,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     this.mapTotal = 0;
     this.reduceTotal = 0;
     this.acceptNewTasks = true;
+
     this.status = null;
 
     this.minSpaceStart = this.fConf.getLong("mapred.local.dir.minspacestart", 0L);
@@ -1993,18 +2000,51 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     boolean askForNewTask;
     long localMinSpaceStart;
     synchronized (this) {
-    	//smc
+    	
+
 //      askForNewTask = 
 //        ((status.countOccupiedMapSlots() < maxMapSlots || 
 //          status.countOccupiedReduceSlots() < maxReduceSlots) && 
 //         acceptNewTasks); 
-    	askForNewTask = ((status.countOccupiedCPUMapSlots() < maxCPUMapSlots ||
-    					status.countOccupiedGPUMapSlots() < maxGPUMapSlots ||
+    	askForNewTask = (((status.countOccupiedCPUMapSlots() < maxCPUMapSlots &&
+    					status.countOccupiedGPUMapSlots() < maxGPUMapSlots) ||
     					status.countOccupiedReduceSlots() < maxReduceSlots) &&
     					acceptNewTasks);
     	
       localMinSpaceStart = minSpaceStart;
     }
+   
+  	//smc measure Power
+  if(status.startMeasureCPU()) {
+    String[] command = new String[]{"/home/ideal/shm/read"};
+    Process proc = Runtime.getRuntime().exec(command);
+    BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+    String text = null;
+    //输出操作结果   
+    while ((text = br.readLine()) != null) {
+    	LOG.info("smc!!!!!!!!!!!!!!!write cpu power" + text);
+    	cpuPower = Float.parseFloat(text);
+    }
+  	status.getResourceStatus().setcpuPower(cpuPower);
+  	float power_out = status.getResourceStatus().getcpuPower();
+  	LOG.info("smc!!!!!!!!!!!!!!!read cpu power" + power_out); 	
+  }
+  
+  if(status.startMeasureGPU()) {
+    String[] command = new String[]{"/home/ideal/shm/read"};
+    Process proc = Runtime.getRuntime().exec(command);
+    BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+    String text = null;
+    //输出操作结果   
+    while ((text = br.readLine()) != null) {
+    	LOG.info("smc!!!!!!!!!!!!!!!write gpu power" + text);
+    	gpuPower = Float.parseFloat(text);
+    }
+  	status.getResourceStatus().setgpuPower(gpuPower);
+  	float power_out = status.getResourceStatus().getgpuPower();
+  	LOG.info("smc!!!!!!!!!!!!!!!read gpu power" + power_out); 	
+  }
+  
     if (askForNewTask) {
       askForNewTask = enoughFreeSpace(localMinSpaceStart);
       long freeDiskSpace = getFreeSpace();
@@ -2030,6 +2070,10 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
       status.getResourceStatus().setCpuFrequency(cpuFreq);
       status.getResourceStatus().setNumProcessors(numCpu);
       status.getResourceStatus().setCpuUsage(cpuUsage);
+      //smc
+      status.getResourceStatus().setcpuPower(cpuPower);
+      status.getResourceStatus().setgpuPower(gpuPower);
+      status.getResourceStatus().setidlePower(idlePower);
     }
     //add node health information
     
@@ -2756,7 +2800,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 	      	tip.slotTaken = true;
 	      }
 	      //got a free slot. launch the task
-	      startNewTask(tip);
+	      startNewTask(tip);	      
 	    }catch (InterruptedException e) {
 	    	return; // ALL DONE
 	    } catch (Throwable th) {
@@ -2863,6 +2907,17 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
    */
   public void run() {
     try {
+    	//smc:measure idle power
+      String[] command = new String[]{"/home/ideal/shm/read"};
+      Process proc = Runtime.getRuntime().exec(command);
+      BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+      String text = null;
+      //输出操作结果   
+      while ((text = br.readLine()) != null) {
+      	LOG.info("smc!!!!!!!!!!!!!!!write cpu power" + text);
+      	idlePower = Float.parseFloat(text);
+      }
+      
       getUserLogManager().start();
       startCleanupThreads();
       boolean denied = false;
