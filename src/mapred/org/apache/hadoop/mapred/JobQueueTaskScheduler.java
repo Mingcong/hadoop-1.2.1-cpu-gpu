@@ -113,13 +113,13 @@ class JobQueueTaskScheduler extends TaskScheduler {
     final int trackerRunningReduces = taskTrackerStatus.countReduceTasks();
     
     //smc
-    LOG.info("DEBUG ************* assignTasks started!!!");
-    LOG.info("DEBUG trackerMapCapacity : " + trackerMapCapacity);
-    LOG.info("DEBUG trackerCPUMapCapacity : " + trackerCPUMapCapacity);
-    LOG.info("DEBUG trackerGPUMapCapacity : " + trackerGPUMapCapacity);
-    LOG.info("DEBUG trackerRunningCPUMaps : " + trackerRunningCPUMaps);
-    LOG.info("DEBUG trackerRunningGPUMaps : " + trackerRunningGPUMaps);
-    LOG.info("DEBUG trackerRunningMaps : " + trackerRunningMaps);
+//    LOG.info("DEBUG ************* assignTasks started!!!");
+//    LOG.info("DEBUG trackerMapCapacity : " + trackerMapCapacity);
+//    LOG.info("DEBUG trackerCPUMapCapacity : " + trackerCPUMapCapacity);
+//    LOG.info("DEBUG trackerGPUMapCapacity : " + trackerGPUMapCapacity);
+//    LOG.info("DEBUG trackerRunningCPUMaps : " + trackerRunningCPUMaps);
+//    LOG.info("DEBUG trackerRunningGPUMaps : " + trackerRunningGPUMaps);
+//    LOG.info("DEBUG trackerRunningMaps : " + trackerRunningMaps);
 
     // Assigned tasks
     List<Task> assignedTasks = new ArrayList<Task>();
@@ -136,7 +136,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
     int cpuMapTaskMeanTime = 0;
     int gpuMapTaskMeanTime = 0;
     int totalMapTasks = 0;
-    
+    double accelarationFactor = 0;
     synchronized (jobQueue) {
       for (JobInProgress job : jobQueue) {
         if (job.getStatus().getRunState() == JobStatus.RUNNING) {
@@ -153,6 +153,16 @@ class JobQueueTaskScheduler extends TaskScheduler {
           LOG.info("job.maptaskmeantime : " + job.getMapTaskMeanTime());
           LOG.info("job.CPUmaptaskmeantime : " + job.getCPUMapTaskMeanTime());
           LOG.info("job.GPUmaptaskmeantime : " + job.getGPUMapTaskMeanTime());
+          //smc
+          LOG.info("DEBUG: finishedCPUMaps : " + finishedCPUMapTasks);
+          LOG.info("DEBUG: finishedGPUMaps : " + finishedGPUMapTasks);
+          LOG.info("DEBUG: reminingMapLoad : " + remainingMapLoad);
+          LOG.info("DEBUG: pendingMapLoad : " + pendingMapLoad);
+          
+        	accelarationFactor =
+          		(cpuMapTaskMeanTime == 0 || gpuMapTaskMeanTime == 0) ? 0.0
+          				: (double)cpuMapTaskMeanTime / (double)gpuMapTaskMeanTime;
+          LOG.info("DEBUG: accelarationfactor : " + accelarationFactor);
           
           if (job.scheduleReduces()) {
             remainingReduceLoad += 
@@ -161,15 +171,8 @@ class JobQueueTaskScheduler extends TaskScheduler {
         }
       }
     }
-    //smc
-    LOG.info("DEBUG: finishedCPUMaps : " + finishedCPUMapTasks);
-    LOG.info("DEBUG: finishedGPUMaps : " + finishedGPUMapTasks);
-    LOG.info("DEBUG: reminingMapLoad : " + remainingMapLoad);
-    LOG.info("DEBUG: pendingMapLoad : " + pendingMapLoad);
-  	double accelarationFactor =
-    		(cpuMapTaskMeanTime == 0 || gpuMapTaskMeanTime == 0) ? 0.0
-    				: (double)cpuMapTaskMeanTime / (double)gpuMapTaskMeanTime;
-    LOG.info("DEBUG: accelarationfactor : " + accelarationFactor);
+
+
     
     // Compute the 'load factor' for maps and reduces
     double mapLoadFactor = 0.0;
@@ -217,13 +220,13 @@ class JobQueueTaskScheduler extends TaskScheduler {
     int numLocalMaps = 0;
     int numNonLocalMaps = 0;
     //smc
-    LOG.info("XXXX availableMapSlots : " + availableMapSlots);
-    LOG.info("XXXX availableCPUMapSlots : " + availableCPUMapSlots);
-    LOG.info("XXXX availableGPUMapSlots : " + availableGPUMapSlots);
+//    LOG.info("XXXX availableMapSlots : " + availableMapSlots);
+//    LOG.info("XXXX availableCPUMapSlots : " + availableCPUMapSlots);
+//    LOG.info("XXXX availableGPUMapSlots : " + availableGPUMapSlots);
     
     if(!(Math.max(pendingMapLoad, 0) < accelarationFactor * trackerGPUMapCapacity * numTaskTrackers)){
     	
-    	LOG.info("DEBUG: ************* try to assign to CPU");
+    	//LOG.info("DEBUG: ************* try to assign to CPU");
     	
     	scheduleCPUMaps:
     	for (int i = 0; i < availableCPUMapSlots; ++i) {
@@ -262,7 +265,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
     	LOG.info("DEBUG: DO NOT try to assign to CPU");
     }
           
-    LOG.info("DEBUG: ************* try to assign to GPU");
+    //LOG.info("DEBUG: ************* try to assign to GPU");
     
     scheduleGPUMaps:
    	for (int i = 0; i < availableGPUMapSlots; ++i) {
