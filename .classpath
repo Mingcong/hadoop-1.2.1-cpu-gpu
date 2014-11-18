@@ -115,6 +115,6 @@
 	<classpathentry kind="lib" path="src/test/lib/mina-core-2.0.0-M2-20080407.124109-12.jar"/>
 	<classpathentry kind="lib" path="conf"/>
 	<classpathentry kind="lib" path="build/eclipse/test-resources"/>
-	<classpathentry kind="lib" path="/usr/lib/jvm/java-6-openjdk-amd64/lib/tools.jar"/>
+	<classpathentry kind="lib" path="/home/ideal/hadoop-1.2.1-cpu-gpu/hadoop-test-1.2.1.jar"/>
 	<classpathentry kind="output" path="build/eclipse/classes-main"/>
 </classpath>

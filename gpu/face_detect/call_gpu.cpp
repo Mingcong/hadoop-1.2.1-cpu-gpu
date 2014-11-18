@@ -13,7 +13,7 @@ using namespace std;
 using namespace cv;
 using namespace cv::gpu;
 
-JNIEXPORT jint JNICALL Java_com_smc_vidproc_call_1gpu_detect
+JNIEXPORT jint JNICALL Java_com_smc_vidproc_call_1gpu_app
   (JNIEnv *env, jclass, jstring video_in, jstring video_out)
 {
    double t = (double)getTickCount();
@@ -26,7 +26,7 @@ JNIEXPORT jint JNICALL Java_com_smc_vidproc_call_1gpu_detect
        return 0; /* OutOfMemoryError already thrown */  
    }  
    std::cout << "video_in:" << in << "video_out:" << out <<std::endl;  
-   string cascadeName = "/home/ideal/hadoop-1.2.1/classifier/haarcascade_frontalface_alt.xml";
+   string cascadeName = "/home/ideal/hadoop-1.2.1-cpu-gpu/classifier/haarcascade_frontalface_alt.xml";
  
    VideoCapture capture(in);
    
@@ -92,7 +92,7 @@ double fps = capture.get(CV_CAP_PROP_FPS); //get the width of frames of the vide
    }
    
    capture.release();
-   v_o.release(); 
+  // v_o.release(); 
    cascade_gpu.release();
    t=((double)getTickCount()-t)/getTickFrequency();
    cout << "processing time: " << t << endl;

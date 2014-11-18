@@ -9,10 +9,10 @@ extern "C" {
 #endif
 /*
  * Class:     com_smc_vidproc_call_gpu
- * Method:    detect
+ * Method:    app
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_com_smc_vidproc_call_1gpu_detect
+JNIEXPORT jint JNICALL Java_com_smc_vidproc_call_1gpu_app
   (JNIEnv *, jclass, jstring, jstring);
 
 #ifdef __cplusplus

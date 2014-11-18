@@ -8,7 +8,7 @@
 using namespace std;
 using namespace cv;
 
-JNIEXPORT jint JNICALL Java_com_smc_vidproc_call_1cpu_detect
+JNIEXPORT jint JNICALL Java_com_smc_vidproc_call_1cpu_app
   (JNIEnv *env, jclass, jstring video_in, jstring video_out)
 {
    double t = (double)getTickCount();
@@ -22,7 +22,7 @@ JNIEXPORT jint JNICALL Java_com_smc_vidproc_call_1cpu_detect
    }  
    std::cout << "video_in:" << in << "video_out:" << out <<std::endl;  
    
-   string cascadeName = "/home/ideal/hadoop-1.2.1/classifier/haarcascade_frontalface_alt.xml";
+   string cascadeName = "/home/ideal/hadoop-1.2.1-cpu-gpu/classifier/haarcascade_frontalface_alt.xml";
  
    CascadeClassifier cascade; 
    VideoCapture capture(in);
@@ -79,7 +79,7 @@ JNIEXPORT jint JNICALL Java_com_smc_vidproc_call_1cpu_detect
       capture >> frame;
    }
    capture.release();
-   v_o.release(); 
+   //v_o.release(); 
    t=((double)getTickCount()-t)/getTickFrequency();
    cout << "processing time: " << t << endl;
    return 1;

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-  <name>hadoop-1.2.1</name>
+  <name>hadoop-1.2.1-cpu-gpu</name>
   <comment>
   </comment>
   <projects>

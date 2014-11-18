@@ -1,2 +1,2 @@
 #!/bin/bash
-bin/hadoop jar video/face_jni_gpu.jar com.smc.vidproc.DirectVideoProcessor -files cpu/face_detect/libcpu_face_detect.so,gpu/face_detect/libgpu_face_detect.so input output
+bin/hadoop jar video/call_app.jar com.smc.vidproc.DirectVideoProcessor -files cpu/face_detect/libcpu_app.so,gpu/face_detect/libgpu_app.so input output
