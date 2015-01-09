@@ -5,8 +5,8 @@ layers {
   top: "data"
   top: "label"
   image_data_param {
-    source: "file_list.txt"
-    mean_file: "imagenet_mean.binaryproto"
+    source: "/home/ideal/hadoop-1.2.1-cpu-gpu/apps/caffe_classification/file_list.txt"
+    mean_file: "/home/ideal/hadoop-1.2.1-cpu-gpu/apps/caffe_classification/imagenet_mean.binaryproto"
     batch_size: 500
     crop_size: 227
     mirror: false

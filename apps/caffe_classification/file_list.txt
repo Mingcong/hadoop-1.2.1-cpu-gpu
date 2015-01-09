@@ -1,1 +1,1 @@
- p.png 0
+ /home/ideal/hadoop-1.2.1-cpu-gpu/apps/caffe_classification/p.png 0

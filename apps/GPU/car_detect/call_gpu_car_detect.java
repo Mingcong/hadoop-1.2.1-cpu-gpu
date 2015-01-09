@@ -8,7 +8,7 @@ public class call_gpu_car_detect {
 		String numThreads = args[2];
 		try {  
 //			String command = "/home/ideal/git/apps_for_streaming/CPU/shell/run.sh /home/ideal/car_10m.avi out.txt 8";
-			String command = "/home/ideal/git/apps_for_streaming/GPU/shell/run.sh " + input + " " + output + " " + numThreads;
+			String command = "/home/ideal/hadoop-1.2.1-cpu-gpu/apps/GPU/car_detect/run.sh " + input + " " + output + " " + numThreads;
   			Process proc = Runtime.getRuntime().exec(command);  
 			readProcessOutput(proc);
   			int exitVal = proc.waitFor();  
