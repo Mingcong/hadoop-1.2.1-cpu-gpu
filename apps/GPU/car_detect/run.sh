@@ -1,2 +1,2 @@
 #!/bin/bash
-/home/ideal/git/apps_for_streaming/GPU/shell/gpu_car_detect $1 $2 $3
+/home/ideal/hadoop-1.2.1-cpu-gpu/apps/GPU/car_detect/gpu_car_detect $1 $2 $3
