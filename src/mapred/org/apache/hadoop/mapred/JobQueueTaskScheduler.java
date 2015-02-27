@@ -99,6 +99,8 @@ class JobQueueTaskScheduler extends TaskScheduler {
     //
     // Get map + reduce counts for the current tracker.
     //
+    final String trackerName = taskTrackerStatus.getTrackerName();
+    
     final int trackerMapCapacity = taskTrackerStatus.getMaxMapSlots();
     //smc
     final int trackerCPUMapCapacity = taskTrackerStatus.getMaxCPUMapSlots();
@@ -224,7 +226,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
 //    LOG.info("XXXX availableCPUMapSlots : " + availableCPUMapSlots);
 //    LOG.info("XXXX availableGPUMapSlots : " + availableGPUMapSlots);
     
-    if(!(Math.max(pendingMapLoad, 0) < accelarationFactor * trackerGPUMapCapacity * numTaskTrackers)){
+//    if(!(Math.max(pendingMapLoad, 0) < accelarationFactor * trackerGPUMapCapacity * numTaskTrackers)){
     	
     	//LOG.info("DEBUG: ************* try to assign to CPU");
     	
@@ -245,7 +247,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
        				if (t != null) {
        					assignedTasks.add(t);
        					++numLocalMaps;
-       					LOG.info("DEBUG: ************* assign to CPU");
+       					LOG.info("DEBUG: Local ************* assign to CPU " + trackerName);
        					break;
        				}
        				
@@ -254,16 +256,16 @@ class JobQueueTaskScheduler extends TaskScheduler {
        				if (t != null) {
        					assignedTasks.add(t);
        					++numNonLocalMaps;
-       					LOG.info("DEBUG: ************* assign to CPU");
+       					LOG.info("DEBUG: NonLocal************* assign to CPU " + trackerName);
        					break scheduleCPUMaps;
        				}
     			}
     		}
     	}
-    }
-    else{
-    	LOG.info("DEBUG: DO NOT try to assign to CPU");
-    }
+//    }
+//    else{
+//    	LOG.info("DEBUG: DO NOT try to assign to CPU");
+//    }
           
     //LOG.info("DEBUG: ************* try to assign to GPU");
     
@@ -284,7 +286,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
    					t.setRunOnGPU(true);
    					assignedTasks.add(t);
    					++numLocalMaps;
-   					LOG.info("DEBUG: ************* assign to GPU");
+   					LOG.info("DEBUG: Local************* assign to GPU " + trackerName);
    					break;
    				}
    				
@@ -295,7 +297,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
    					t.setRunOnGPU(true);
    					assignedTasks.add(t);
    					++numNonLocalMaps;
-   					LOG.info("DEBUG: ************* assign to GPU");
+   					LOG.info("DEBUG: NonLocal************* assign to GPU " + trackerName);
    					break scheduleGPUMaps;
    				}
    			}
