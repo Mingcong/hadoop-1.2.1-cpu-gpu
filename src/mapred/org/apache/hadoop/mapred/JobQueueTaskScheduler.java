@@ -111,10 +111,15 @@ class JobQueueTaskScheduler extends TaskScheduler {
     //smc
     final int trackerRunningCPUMaps = taskTrackerStatus.countCPUMapTasks();
     final int trackerRunningGPUMaps = taskTrackerStatus.countGPUMapTasks();
+    final boolean isGPU = taskTrackerStatus.getIsGPU();
     
     final int trackerRunningReduces = taskTrackerStatus.countReduceTasks();
     
-    //smc
+    int availableMapSlots = trackerMapCapacity - trackerRunningMaps;
+    int availableCPUMapSlots = trackerCPUMapCapacity - trackerRunningCPUMaps;
+    int availableGPUMapSlots = trackerGPUMapCapacity - trackerRunningGPUMaps;
+    
+//    //smc
 //    LOG.info("DEBUG ************* assignTasks started!!!");
 //    LOG.info("DEBUG trackerMapCapacity : " + trackerMapCapacity);
 //    LOG.info("DEBUG trackerCPUMapCapacity : " + trackerCPUMapCapacity);
@@ -160,6 +165,11 @@ class JobQueueTaskScheduler extends TaskScheduler {
           LOG.info("DEBUG: finishedGPUMaps : " + finishedGPUMapTasks);
           LOG.info("DEBUG: reminingMapLoad : " + remainingMapLoad);
           LOG.info("DEBUG: pendingMapLoad : " + pendingMapLoad);
+          
+          //smc
+          LOG.info(trackerName + " availableMapSlots : " + availableMapSlots);
+          LOG.info(trackerName + " availableCPUMapSlots : " + availableCPUMapSlots);
+          LOG.info(trackerName + " availableGPUMapSlots : " + availableGPUMapSlots);
           
         	accelarationFactor =
           		(cpuMapTaskMeanTime == 0 || gpuMapTaskMeanTime == 0) ? 0.0
@@ -207,9 +217,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
       Math.min((int)Math.ceil(mapLoadFactor * trackerMapCapacity), 
                               trackerMapCapacity);
     int availableMapSlots = trackerCurrentMapCapacity - trackerRunningMaps;*/
-    int availableMapSlots = trackerMapCapacity - trackerRunningMaps;
-    int availableCPUMapSlots = trackerCPUMapCapacity - trackerRunningCPUMaps;
-    int availableGPUMapSlots = trackerGPUMapCapacity - trackerRunningGPUMaps;
+
     
     boolean exceededMapPadding = false;
     /*smc
@@ -221,15 +229,12 @@ class JobQueueTaskScheduler extends TaskScheduler {
     
     int numLocalMaps = 0;
     int numNonLocalMaps = 0;
-    //smc
-//    LOG.info("XXXX availableMapSlots : " + availableMapSlots);
-//    LOG.info("XXXX availableCPUMapSlots : " + availableCPUMapSlots);
-//    LOG.info("XXXX availableGPUMapSlots : " + availableGPUMapSlots);
+
     
 //    if(!(Math.max(pendingMapLoad, 0) < accelarationFactor * trackerGPUMapCapacity * numTaskTrackers)){
     	
     	//LOG.info("DEBUG: ************* try to assign to CPU");
-    	
+      if(!isGPU) {
     	scheduleCPUMaps:
     	for (int i = 0; i < availableCPUMapSlots; ++i) {
     		synchronized (jobQueue) {
@@ -262,6 +267,7 @@ class JobQueueTaskScheduler extends TaskScheduler {
     			}
     		}
     	}
+      }
 //    }
 //    else{
 //    	LOG.info("DEBUG: DO NOT try to assign to CPU");
@@ -290,16 +296,29 @@ class JobQueueTaskScheduler extends TaskScheduler {
    					break;
    				}
    				
-   				// NewNonLocalMapTask
-   				t = job.obtainNewNonLocalMapTask(taskTrackerStatus, numTaskTrackers, 
-   						taskTrackerManager.getNumberOfUniqueHosts());
+   				// NewRackLocalMapTask
+				t = job.obtainNewNodeOrRackLocalMapTask(taskTrackerStatus, numTaskTrackers, 
+						taskTrackerManager.getNumberOfUniqueHosts());
+   				
    				if (t != null) {
    					t.setRunOnGPU(true);
    					assignedTasks.add(t);
    					++numNonLocalMaps;
-   					LOG.info("DEBUG: NonLocal************* assign to GPU " + trackerName);
-   					break scheduleGPUMaps;
+   					LOG.info("DEBUG: RackLocal************* assign to GPU " + trackerName);
+//   					break scheduleGPUMaps;
+   					break;
    				}
+   				
+   				// NewNonLocalMapTask
+				t = job.obtainNewNonLocalMapTask(taskTrackerStatus, numTaskTrackers, 
+						taskTrackerManager.getNumberOfUniqueHosts());			
+				if (t != null) {
+					t.setRunOnGPU(true);
+					assignedTasks.add(t);
+					++numNonLocalMaps;
+					LOG.info("DEBUG: NonLocal************* assign to GPU " + trackerName);
+					break scheduleGPUMaps;
+				}
    			}
    		}
    	}

@@ -333,6 +333,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   //smc
   private int maxCPUMapSlots;
   private int maxGPUMapSlots;
+  private boolean isGPU;
   
   private int maxReduceSlots;
   private int taskFailures;
@@ -1541,6 +1542,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 //                  "mapred.tasktracker.map.tasks.maximum", 2);
     maxCPUMapSlots = conf.getInt("mapred.tasktracker.map.cpu.tasks.maximum", 2);
     maxGPUMapSlots = conf.getInt("mapred.tasktracker.map.gpu.tasks.maximum", 0);
+    isGPU = conf.getBoolean("mapred.tasktracker.map.GPU", false);
     maxMapSlots = maxCPUMapSlots + maxGPUMapSlots;
     
     maxReduceSlots = conf.getInt(
@@ -1980,6 +1982,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
                                        localStorage.numFailures(),
                                        maxCPUMapSlots,//smc
                                        maxGPUMapSlots,
+                                       isGPU,
                                        maxReduceSlots); 
       }
     } else {
@@ -4466,6 +4469,9 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   int getMaxGPUMapSlots() {
   	return maxGPUMapSlots;
   }
+  boolean getIsGPU() {
+	  	return isGPU;
+	  }
   
   int getMaxCurrentReduceTasks() {
     return maxReduceSlots;

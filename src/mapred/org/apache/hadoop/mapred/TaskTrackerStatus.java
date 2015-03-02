@@ -57,6 +57,7 @@ public class TaskTrackerStatus implements Writable {
   //cpu
   private int maxCPUMapSlots;
   private int maxGPUMapSlots;
+  private boolean isGPU;
   
   private int maxReduceTasks;
   private TaskTrackerHealthStatus healthStatus;
@@ -384,7 +385,7 @@ public class TaskTrackerStatus implements Writable {
   public TaskTrackerStatus(String trackerName, String host,
   													int httpPort, List<TaskStatus> taskReports,
   													int taskFailures, int dirFailures,
-  													int maxCPUMapSlots, int maxGPUMapSlots, int maxReduceTasks) {
+  													int maxCPUMapSlots, int maxGPUMapSlots, boolean isGPU, int maxReduceTasks) {
   	this.trackerName = trackerName;
   	this.host = host;
   	this.httpPort = httpPort;
@@ -394,6 +395,7 @@ public class TaskTrackerStatus implements Writable {
   	this.dirFailures = dirFailures;
   	this.maxCPUMapSlots = maxCPUMapSlots;
   	this.maxGPUMapSlots = maxGPUMapSlots;
+  	this.isGPU = isGPU;
   	this.maxReduceTasks = maxReduceTasks;
   	this.resStatus = new ResourceStatus();
   	this.healthStatus = new TaskTrackerHealthStatus();
@@ -633,6 +635,9 @@ public class TaskTrackerStatus implements Writable {
 	public int getMaxGPUMapSlots() {
 		return maxGPUMapSlots;
   }
+	public boolean getIsGPU() {
+		return isGPU;
+  }
 	
   /**
    * Get the maximum reduce slots for this node.
@@ -779,6 +784,7 @@ public class TaskTrackerStatus implements Writable {
     //out.writeInt(maxMapTasks);//cpu
     out.writeInt(maxCPUMapSlots);
     out.writeInt(maxGPUMapSlots);
+    out.writeBoolean(isGPU);
     out.writeInt(maxReduceTasks);
     resStatus.write(out);
     out.writeInt(taskReports.size());
@@ -798,6 +804,7 @@ public class TaskTrackerStatus implements Writable {
     //this.maxMapTasks = in.readInt();//cpu
     this.maxCPUMapSlots = in.readInt();
     this.maxGPUMapSlots = in.readInt();
+    this.isGPU = in.readBoolean();
     this.maxReduceTasks = in.readInt();
     resStatus.readFields(in);
     taskReports.clear();
